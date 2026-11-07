@@ -542,8 +542,9 @@ let QUIET=false;
 function log(txt,k){if(QUIET)return;S.log.unshift({t:S.t,txt,k:k||'info'});if(S.log.length>300)S.log.pop()}
 const fast=()=>UI.auto&&SPEEDS[UI.spd]>=20;
 UI.feed=[];UI.unread=0;UI.ptr=0;UI.lastFull=0;
-['pointermove','pointerdown','touchstart','wheel','keydown'].forEach(ev=>document.addEventListener(ev,()=>{UI.ptr=Date.now()},{passive:true,capture:true}));
-const busy=()=>Date.now()-UI.ptr<1500;
+['pointerdown','touchstart','wheel','keydown'].forEach(ev=>document.addEventListener(ev,()=>{UI.ptr=Date.now()},{passive:true,capture:true}));
+const busy=()=>Date.now()-UI.ptr<1200;
+function liveUpdate(){const v=nw(),L=S.last;document.querySelectorAll('[data-live]').forEach(e=>{const k=e.dataset.live;if(k==='nw')e.textContent=money(v);else if(k==='cash')e.textContent=money(S.cash);else if(k==='rank')e.textContent=rank(v);else if(k==='flow'&&L){e.textContent=signed(L.total);e.className=L.total>=0?'g':'r'}})}
 function feedPush(t,b,k,imp){UI.feed.unshift({t,b:b||'',k:k||'',imp:!!imp,d:S?dateStr(S.t):''});if(UI.feed.length>80)UI.feed.pop();UI.unread++;renderTicker()}
 function renderTicker(){const el=$('ticker');if(!el)return;const f=UI.feed[0];
  el.querySelector('.tk-msg').innerHTML=f?`<span class="dot ${f.k}"></span><b>${f.t}</b>${f.b?` <span class="muted">— ${f.b}</span>`:''}`:'<span class="muted">No news yet.</span>';
@@ -1008,7 +1009,7 @@ function modal(title,body,btns){
 const NAV=[['overview','◈','Overview','Wealth & cash flow'],['ledger','▤','Ledger','Stats, taxes, prestige'],['career','✎','Career','Jobs & education'],['invest','↗','Invest','Markets, bonds, funds'],['property','⌂','Property','Real estate'],['empire','♜','Empire','Your companies'],['life','♡','Life','Family, health, legacy'],['politics','⚖','Politics','Public office'],['casino','♠','Casino','Games of chance'],['underworld','☾','Underworld','Risky business'],['world','◎','World','Regions & megaprojects'],['legacy','✦','Legacy','Goals & chronicle']];
 function render(soft){
  if(!S)return;
- if(soft){$('tCash').textContent=money(S.cash);$('tDate').textContent=dateStr(S.t);$('mNw').textContent=money(nw());if(busy()||Date.now()-UI.lastFull<(SPEEDS[UI.spd]>=20?1500:900))return}
+ if(soft){$('tCash').textContent=money(S.cash);$('tDate').textContent=dateStr(S.t);$('mNw').textContent=money(nw());liveUpdate();if(busy()||Date.now()-UI.lastFull<(SPEEDS[UI.spd]>=20?1500:900))return}
  UI.lastFull=Date.now();
  $('tCash').textContent=money(S.cash);$('tDate').textContent=dateStr(S.t);
  $('nextBtn').disabled=S.dead;
@@ -1018,7 +1019,7 @@ function render(soft){
  const v=nw();
  $('side').innerHTML=`<div class="prof"><svg width="44" height="50" viewBox="0 0 44 50"><path d="M22 2 L40 8 V24 C40 36 32 44 22 48 C12 44 4 36 4 24 V8 Z" fill="#1b2a21" stroke="#d4af5a" stroke-width="1.5"/><text x="22" y="31" text-anchor="middle" font-family="Cormorant Garamond,serif" font-weight="700" font-size="18" fill="#f0d58a">${S.house[0]}</text></svg>
   <div><div class="name">${S.name}</div><div class="sub">${ageY()} y · ${S.gender==='f'?'♀':'♂'} · ${S.job>0?JOBS[S.job].n:(ageY()>=67?'Retired':'No job')}${S.trait?` · <span class="gold" title="${TRAITS[S.trait].d}">${TRAITS[S.trait].n}</span>`:''}</div><div class="house">House ${S.house} · Gen ${S.gen}</div></div></div>
-  <div class="mini"><div class="minibox"><small>Wealth</small><b>${money(v)}</b></div><div class="minibox"><small>Rank</small><b class="up">${rank(v)}</b></div></div>
+  <div class="mini"><div class="minibox"><small>Wealth</small><b data-live="nw">${money(v)}</b></div><div class="minibox"><small>Rank</small><b class="up" data-live="rank">${rank(v)}</b></div></div>
   <div class="mini">${meterBox('Health',S.health,'#58c98a')}${meterBox('Happiness',S.hap,'#d4af5a')}</div>
   <div class="mini">${meterBox('Reputation',S.rep,'#8fb3e8')}${meterBox('Skill',S.skill,'#c98fd1')}</div>
   <nav class="nav">${NAV.map(([id,ic,t,d])=>`<button class="${UI.view===id?'on':''}" data-act="nav" data-v="${id}"><span class="ic">${ic}</span><span><div class="t">${t}</div><div class="d">${d}</div></span></button>`).join('')}</nav>`;
@@ -1051,9 +1052,9 @@ const VIEWS={
   const bs=[['Cash',S.cash],['Stocks, ETFs & commodities',secVal()],['Bonds',bondVal()],['Funds',fundVal()],['Managed account',S.mgr.value],['Property equity',propEq()],['Companies',bizVal()],['Acquired houses',acqVal()],['Collections',collVal()],['Sports teams',teamVal()],['Bloodstock',horsesVal()],['Debt',-S.credit]];
   return head(`Welcome, ${S.name}`,`<em>${eraName()}</em> · Age ${ageY()} · <em>${S.job>0?'Working life':'Free agent'}</em> · Rank: <em>${rank(v)}</em> · House ${S.house}, generation ${S.gen} · Economy: <span class="${S.econ.phase>0?'up':'down'}">${S.econ.phase>0?'↗ Upswing':'↘ Recession'}</span> · Base rate ${(S.rate*100).toFixed(2)}% · ${DIFF[S.diff].n}${S.cartel?' · <span class="down">Rival cartel</span>':''}${Object.keys(S.shocks).length?` · <span class="down">${Object.keys(S.shocks).map(k=>({bubble:'Tech bubble',bankrun:'Bank run',oil:'Oil shock',crypto:'Crypto mania'})[k]).join(', ')}</span>`:''}`)+
   `<div class="grid g4">
-   <div class="card stat"><small>Net worth</small><b>${money(v)}</b></div>
-   <div class="card stat"><small>Cash</small><b>${money(S.cash)}</b></div>
-   <div class="card stat"><small>Cash flow (last month)</small><b class="${!last||last.total>=0?'g':'r'}">${last?signed(last.total):'—'}</b></div>
+   <div class="card stat"><small>Net worth</small><b data-live="nw">${money(v)}</b></div>
+   <div class="card stat"><small>Cash</small><b data-live="cash">${money(S.cash)}</b></div>
+   <div class="card stat"><small>Cash flow (last month)</small><b data-live="flow" class="${!last||last.total>=0?'g':'r'}">${last?signed(last.total):'—'}</b></div>
    <div class="card stat"><small>${S.office>=0?'Office':'Job'}</small><b class="w">${S.office>=0?OFFICES[S.office].n:JOBS[S.job].n}</b></div>
   </div>
   <div class="grid g2" style="margin-top:14px">
